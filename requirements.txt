@@ -1,0 +1,14 @@
+pandas==1.5.3
+geoalchemy2==0.15.1
+scipy==1.13.1
+geopandas==0.12.2
+openpyxl==3.1.4
+fitter==1.7.1
+requests==2.31.0
+psycopg2-binary
+shapely==1.8.4
+torch
+torchvision
+torchaudio
+ortools
+pytimekr
