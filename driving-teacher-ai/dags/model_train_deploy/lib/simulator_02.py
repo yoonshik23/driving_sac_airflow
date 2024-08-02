@@ -289,7 +289,7 @@ class Simulator_01():
             tmp_시차 = tmp_시 - pd.to_datetime(self.예약자['접속일시'].strftime('%Y-%m-%d %H:%M:%S'))
             tmp = self.학생생성기준일[self.학생생성기준일['연월일'] == tmp_시.strftime('%Y%m%d')].reset_index(drop = True)
             
-            continuous_sate = [tmp_시차.total_seconds(), self.예약자['예약희망_point_idx'], self.위치데이터.loc[self.예약자['예약희망_point_idx'], '수요인구'], tmp.loc[0, '휴일'], tmp['mean'].mean(), tmp['std'].mean()]
+            continuous_sate = [tmp_시차.total_seconds(), self.예약자['예약희망_point_idx'], self.위치데이터.loc[self.예약자['예약희망_point_idx'], '수요인구'], bool(tmp.loc[0, '휴일']), tmp['mean'].mean(), tmp['std'].mean()]
             sequence_state = []
             for tmp_list in self.예약가능일_info_state[(self.예약자['접속일시']+pd.Timedelta(value = i+1, unit = 'day')).strftime('%Y%m%d')]:
                 sequence_state.append([self.예약자['예약희망_point'].distance(x) for x in tmp_list])
@@ -882,7 +882,7 @@ class Simulator_01():
         모집단 = self.data.drop_duplicates(subset = ['연월일', '시간대']).reset_index(drop = True).loc[:, ['연월일', '연', '월', '요일', 
                                                                                                        # '절기', 
                                                                                                        '공휴일', '시간대']]
-        카운트 = self.data.groupby(['연월일', '시간대'])[['고객_접속일시']].count()
+        카운트 = self.data.groupby(['연월일', '시간대'])[['예약희망일시']].count()
         for i in range(len(카운트)):
             모집단.loc[(모집단['연월일']==카운트.index[i][0])&(모집단['시간대']==카운트.index[i][1]), 'count'] = 카운트.iloc[i,0]
         self.모집단 = 모집단
@@ -935,7 +935,7 @@ class Simulator_01():
         self.학생생성기준일 = 구분데이터붙이기(self.학생생성기준일, '일시')
         self.학생생성기준일['휴일'] = False
         for i in range(len(self.학생생성기준일)):
-            key = (self.학생생성기준일.loc[i, '월'], self.학생생성기준일.loc[i, '요일'], self.학생생성기준일.loc[i, '공휴일'], self.학생생성기준일.loc[i, '시간대'])
+            key = (self.학생생성기준일.loc[i, '월'], self.학생생성기준일.loc[i, '요일'], bool(self.학생생성기준일.loc[i, '공휴일']), self.학생생성기준일.loc[i, '시간대'])
             if (key[1] == '5')|(key[1] == '6')|(key[2] == True):
                  self.학생생성기준일.loc[i, '휴일'] = True
             for keys in list(self.cluster.군집s):
@@ -955,7 +955,7 @@ class Simulator_01():
         tmp_공휴일 = []
         tmp_시간대 = []
         for i in range(len(self.학생생성기준일시)):
-            self_key = (self.학생생성기준일시.loc[i, '월'], self.학생생성기준일시.loc[i, '요일'], self.학생생성기준일시.loc[i, '공휴일'], self.학생생성기준일시.loc[i, '시간대'])
+            self_key = (self.학생생성기준일시.loc[i, '월'], self.학생생성기준일시.loc[i, '요일'], bool(self.학생생성기준일시.loc[i, '공휴일']), self.학생생성기준일시.loc[i, '시간대'])
             cluster_keys = list(self.hierarchy_sample_data)
             for k in cluster_keys:
                 if self_key in eval(k):
@@ -963,14 +963,17 @@ class Simulator_01():
                     continue
             # 학생 발생 숫자 샘플링
             num = random.sample(self.cluster.군집s[cluster_key], 1)[0] * weight_학생숫자
-            tmp = self.hierarchy_sample_data[cluster_key].sample(int(num), replace = True, ignore_index = True)
+            tmp_df = self.hierarchy_sample_data[cluster_key].copy()
+            tmp_df = tmp_df[tmp_df['시간대'] == self.학생생성기준일시.loc[i, '시간대']]
+            tmp = tmp_df.sample(int(num), replace = True, ignore_index = True)
+            # tmp = self.hierarchy_sample_data[cluster_key].sample(int(num), replace = True, ignore_index = True)
             for j in range(len(tmp)):
                 tmp_예약희망일시.append(pd.to_datetime(self.학생생성기준일시.loc[i, '일시'].strftime('%Y-%m-%d') + ' ' + tmp.loc[j, '예약희망일시'].strftime('%H:%M:%S')))
                 tmp_고객_접속일시.append(tmp_예약희망일시[-1] - (tmp.loc[j, '예약희망일시'] - tmp.loc[j, '고객_접속일시']))
                 tmp_예약희망_point.append(None)
                 tmp_월.append(self.학생생성기준일시.loc[i, '월'])
                 tmp_요일.append(self.학생생성기준일시.loc[i, '요일'])
-                tmp_공휴일.append(self.학생생성기준일시.loc[i, '공휴일'])
+                tmp_공휴일.append(bool(self.학생생성기준일시.loc[i, '공휴일']))
                 tmp_시간대.append(self.학생생성기준일시.loc[i, '시간대'])
         self.가예약정보 = pd.DataFrame(data = {'고객_접속일시': tmp_고객_접속일시, '예약희망일시': tmp_예약희망일시, 
                                          '예약희망_point': tmp_예약희망_point, '월': tmp_월, 
@@ -1129,7 +1132,7 @@ class Simulator_01():
             tmp_남예.loc[:, ['시']] = [x.strftime('%H') for x in tmp_남예['예약_일시']]
             self.tmp_남예 = tmp_남예
             
-            tmp_공휴일 = 예약가능일.loc[i, '공휴일']
+            tmp_공휴일 = bool(예약가능일.loc[i, '공휴일'])
             tmp_요일 = 예약가능일.loc[i, '요일']
             tmp_일시 = 예약가능일.loc[i, '예약일시']
             tmp_시 = tmp_일시.strftime('%H')
@@ -1225,12 +1228,15 @@ class Cluster():
             self.군집s[str(sorted(군집key))] = []
             for key in 군집key:
                 tmp_list = self.모든원소.loc[(self.모든원소['월']==key[0])&(self.모든원소['요일']==key[1])&(self.모든원소['공휴일']==key[2])&(self.모든원소['시간대']==key[3]), 'count'].to_list()
-                if len(tmp_list) == 0:
-                    if  key[2] == False:
-                        tmp_list = [0]
-                    elif key[3] == '심야':
-                        tmp_list = [0]
+                # if len(tmp_list) == 0:
+                #     # tmp_list = [0]
+                #     if  key[2] == False:
+                #         tmp_list = [0]
+                #     elif key[3] == '심야':
+                #         tmp_list = [0]
                 self.군집s[str(sorted(군집key))] += tmp_list
+            if len(self.군집s[str(sorted(군집key))]) == 0:
+                self.군집s[str(sorted(군집key))] = [0]
 
         
         ### 집단 2개 이하인 것 평균 기준으로 합치기 (0개 인 것도 고려)

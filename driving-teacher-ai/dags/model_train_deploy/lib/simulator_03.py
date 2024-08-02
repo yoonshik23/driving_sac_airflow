@@ -32,7 +32,7 @@ from sqlalchemy import text, LargeBinary, Integer
 
 class Simulator_01():
     
-    def __init__(self, simulation_start_dt, simulation_end_dt, db_info, is_first = False, data_start_date = pd.to_datetime('2022-01-01'), data_end_date = None, weight_학생숫자 = 1, 차량숫자 = 12, 시군구_ids = ['11220', '11230', '11240'], mode = 'base'):
+    def __init__(self, simulation_start_dt, simulation_end_dt, db_info, is_first = False, data_start_date = None, data_end_date = None, weight_학생숫자 = 1, 차량숫자 = 12, 시군구_ids = ['11220', '11230', '11240'], mode = 'base'):
         '''
         시뮬레이터에서 사용하는 point 좌표는 모두 위경도 -> 미터 단위로 바꾸기 
         df[''] = df[''].to_crs(epsg = 3857) (위경도좌표 -> 미터좌표)
@@ -41,26 +41,26 @@ class Simulator_01():
         
         if is_first == True:
             self.db_handler = Engine(db_info)
-            self._01_수요데이터불러오기(start_datetime = None, end_datetime = pd.to_datetime(data_end_date), 시군구_ids = 시군구_ids)
+            self._01_수요데이터불러오기(start_datetime = pd.to_datetime(data_start_date), end_datetime = pd.to_datetime(data_end_date), 시군구_ids = 시군구_ids)
 
 
     
             self._02_구분데이터붙이기()
             self._03_클러스터링()
 
-            data_start_dt = self.data.sort_values('예약희망일시').reset_index(drop=True).loc[0, '예약희망일시']
-            data_end_dt = pd.to_datetime(data_end_date)
-            insert_query = text('''INSERT INTO datamart."history_학습id" ("train_data_start_dt", "train_data_end_dt") VALUES (:st, :ed) RETURNING "train_id";''')
+            # data_start_dt = self.data.sort_values('예약희망일시').reset_index(drop=True).loc[0, '예약희망일시']
+            # data_end_dt = pd.to_datetime(data_end_date)
+            # insert_query = text('''INSERT INTO datamart."history_학습id" ("train_data_start_dt", "train_data_end_dt") VALUES (:st, :ed) RETURNING "train_id";''')
             
-            with self.db_handler.engine.connect() as connection:
-                trans = connection.begin()
-                result = connection.execute(insert_query, {'st': data_start_dt, 'ed': data_end_dt})
+        #     with self.db_handler.engine.connect() as connection:
+        #         trans = connection.begin()
+        #         result = connection.execute(insert_query, {'st': data_start_dt, 'ed': data_end_dt})
                 
-                # 생성된 id 값을 가져옴
-                self.train_id = result.scalar()
-                trans.commit()
-                # print(new_id, type(new_id))
-            self._클러스터링결과저장()
+        #         # 생성된 id 값을 가져옴
+        #         self.train_id = result.scalar()
+        #         trans.commit()
+        #         # print(new_id, type(new_id))
+        #     self._클러스터링결과저장()
 
             # with open(위치데이터_path, 'rb') as f:
             #     강남3구_집계구_경계_중심 = pickle.load(f)
@@ -296,7 +296,7 @@ class Simulator_01():
             tmp_시차 = tmp_시 - pd.to_datetime(self.예약자['접속일시'].strftime('%Y-%m-%d %H:%M:%S'))
             tmp = self.학생생성기준일[self.학생생성기준일['연월일'] == tmp_시.strftime('%Y%m%d')].reset_index(drop = True)
             
-            continuous_sate = [tmp_시차.total_seconds(), self.예약자['예약희망_point_idx'], self.위치데이터.loc[self.예약자['예약희망_point_idx'], '수요인구'], tmp.loc[0, '휴일'], tmp['mean'].mean(), tmp['std'].mean()]
+            continuous_sate = [tmp_시차.total_seconds(), self.예약자['예약희망_point_idx'], self.위치데이터.loc[self.예약자['예약희망_point_idx'], '수요인구'], bool(tmp.loc[0, '휴일']), tmp['mean'].mean(), tmp['std'].mean()]
             sequence_state = []
             for tmp_list in self.예약가능일_info_state[(self.예약자['접속일시']+pd.Timedelta(value = i+1, unit = 'day')).strftime('%Y%m%d')]:
                 sequence_state.append([self.예약자['예약희망_point'].distance(x) for x in tmp_list])
@@ -353,7 +353,7 @@ class Simulator_01():
                     tmp_시차 = tmp_시 - pd.to_datetime(self.예약자['접속일시'].strftime('%Y-%m-%d %H:%M:%S'))
                     tmp = self.학생생성기준일[self.학생생성기준일['연월일'] == tmp_시.strftime('%Y%m%d')].reset_index(drop = True)
                     
-                    continuous_sate = [tmp_시차.total_seconds(), self.예약자['예약희망_point_idx'].item(), self.위치데이터.loc[self.예약자['예약희망_point_idx'], '수요인구'].item(), tmp.loc[0, '휴일'].item(), tmp['mean'].mean().item(), tmp['std'].mean().item()]
+                    continuous_sate = [tmp_시차.total_seconds(), self.예약자['예약희망_point_idx'].item(), self.위치데이터.loc[self.예약자['예약희망_point_idx'], '수요인구'].item(), bool(tmp.loc[0, '휴일']), tmp['mean'].mean().item(), tmp['std'].mean().item()]
                     
 
                     sequence_state = []
@@ -381,7 +381,7 @@ class Simulator_01():
             연월일 = np.random.choice(self.학생생성기준일['연월일'].unique())
             tmp_df = self.학생생성기준일[self.학생생성기준일['연월일'] == 연월일].reset_index(drop = True)
             
-            continuous_sate = [tmp_시, tmp.index[i].item(), tmp['수요인구'].iloc[i].item(), tmp_df.loc[0, '휴일'].item(), tmp_df['mean'].mean().item(), tmp_df['std'].mean().item()] + [0]*25
+            continuous_sate = [tmp_시, tmp.index[i].item(), tmp['수요인구'].iloc[i].item(), bool(tmp_df.loc[0, '휴일']), tmp_df['mean'].mean().item(), tmp_df['std'].mean().item()] + [0]*25
             sequence_state = [[] for _ in range(25)]
             states.append([continuous_sate, sequence_state])
         return states
@@ -995,13 +995,14 @@ class Simulator_01():
         모집단 = self.data.drop_duplicates(subset = ['연월일', '시간대']).reset_index(drop = True).loc[:, ['연월일', '연', '월', '요일', 
                                                                                                        # '절기', 
                                                                                                        '공휴일', '시간대']]
-        카운트 = self.data.groupby(['연월일', '시간대'])[['고객_접속일시']].count()
+        카운트 = self.data.groupby(['연월일', '시간대'])[['예약희망일시']].count()
         for i in range(len(카운트)):
             모집단.loc[(모집단['연월일']==카운트.index[i][0])&(모집단['시간대']==카운트.index[i][1]), 'count'] = 카운트.iloc[i,0]
         self.모집단 = 모집단
         self.모집단count = self.모집단.groupby(['월', '요일', '공휴일', '시간대'])[['count']].count()
 
         모든키 = list(self.모집단count.index)
+        self.모든키 = 모든키
         self.cluster = Cluster(value_kinds, 모든키 = 모든키, 모든원소 = self.모집단)
         self.cluster._01_군집화()
         self.cluster._02_cutting(method = 'threshold', values = {'threshold': 0.9})
@@ -1011,10 +1012,10 @@ class Simulator_01():
         for key in list(self.cluster.군집s):
             self.hierarchy_sample_data[key] = pd.DataFrame(columns = ['고객_접속일시', '예약희망일시', '예약희망_point', '연월일', '연', '월', '요일', '공휴일', '시간대'])
             for condition in eval(key):
-                condition1 = (self.data['월'] == condition[0]).astype(bool)
-                condition2 = (self.data['요일'] == condition[1]).astype(bool)
-                condition3 = (self.data['공휴일'] == condition[2]).astype(bool)
-                condition4 = (self.data['시간대'] == condition[3]).astype(bool)
+                condition1 = (self.data['월'] == condition[0])
+                condition2 = (self.data['요일'] == condition[1])
+                condition3 = (self.data['공휴일'] == condition[2])
+                condition4 = (self.data['시간대'] == condition[3])
                 self.hierarchy_sample_data[key] = pd.concat([self.hierarchy_sample_data[key], 
                                                             self.data.loc[condition1&condition2&condition3&condition4, :]]).reset_index(drop = True)
                         
@@ -1036,6 +1037,7 @@ class Simulator_01():
         self.학생생성기준일시['일시'] = tmp
         self.학생생성기준일시 = 구분데이터붙이기(self.학생생성기준일시, '일시')
 
+                
         date_range = pd.date_range(start = pd.to_datetime(dt_start) - pd.Timedelta(value = 30, unit = 'day'), end = pd.to_datetime(dt_end) + pd.Timedelta(value = 30, unit = 'day'), freq=freq)
         tmp = []
         for x in date_range:
@@ -1048,7 +1050,7 @@ class Simulator_01():
         self.학생생성기준일 = 구분데이터붙이기(self.학생생성기준일, '일시')
         self.학생생성기준일['휴일'] = False
         for i in range(len(self.학생생성기준일)):
-            key = (self.학생생성기준일.loc[i, '월'], self.학생생성기준일.loc[i, '요일'], self.학생생성기준일.loc[i, '공휴일'], self.학생생성기준일.loc[i, '시간대'])
+            key = (self.학생생성기준일.loc[i, '월'], self.학생생성기준일.loc[i, '요일'], bool(self.학생생성기준일.loc[i, '공휴일']), self.학생생성기준일.loc[i, '시간대'])
             if (key[1] == '5')|(key[1] == '6')|(key[2] == True):
                  self.학생생성기준일.loc[i, '휴일'] = True
             for keys in list(self.cluster.군집s):
@@ -1068,22 +1070,28 @@ class Simulator_01():
         tmp_공휴일 = []
         tmp_시간대 = []
         for i in range(len(self.학생생성기준일시)):
-            self_key = (self.학생생성기준일시.loc[i, '월'], self.학생생성기준일시.loc[i, '요일'], self.학생생성기준일시.loc[i, '공휴일'], self.학생생성기준일시.loc[i, '시간대'])
+            self_key = (self.학생생성기준일시.loc[i, '월'], self.학생생성기준일시.loc[i, '요일'], bool(self.학생생성기준일시.loc[i, '공휴일']), self.학생생성기준일시.loc[i, '시간대'])
             cluster_keys = list(self.hierarchy_sample_data)
             for k in cluster_keys:
                 if self_key in eval(k):
                     cluster_key = k
+
                     continue
+
             # 학생 발생 숫자 샘플링
             num = random.sample(self.cluster.군집s[cluster_key], 1)[0] * weight_학생숫자
-            tmp = self.hierarchy_sample_data[cluster_key].sample(int(num), replace = True, ignore_index = True)
+            tmp_df = self.hierarchy_sample_data[cluster_key].copy()
+            tmp_df = tmp_df[tmp_df['시간대'] == self.학생생성기준일시.loc[i, '시간대']]
+            # if len(tmp_df) == 0 :
+            #     print(self_key)
+            tmp = tmp_df.sample(int(num), replace = True, ignore_index = True)
             for j in range(len(tmp)):
                 tmp_예약희망일시.append(pd.to_datetime(self.학생생성기준일시.loc[i, '일시'].strftime('%Y-%m-%d') + ' ' + tmp.loc[j, '예약희망일시'].strftime('%H:%M:%S')))
                 tmp_고객_접속일시.append(tmp_예약희망일시[-1] - (tmp.loc[j, '예약희망일시'] - tmp.loc[j, '고객_접속일시']))
                 tmp_예약희망_point.append(None)
                 tmp_월.append(self.학생생성기준일시.loc[i, '월'])
                 tmp_요일.append(self.학생생성기준일시.loc[i, '요일'])
-                tmp_공휴일.append(self.학생생성기준일시.loc[i, '공휴일'])
+                tmp_공휴일.append(bool(self.학생생성기준일시.loc[i, '공휴일']))
                 tmp_시간대.append(self.학생생성기준일시.loc[i, '시간대'])
         self.가예약정보 = pd.DataFrame(data = {'고객_접속일시': tmp_고객_접속일시, '예약희망일시': tmp_예약희망일시, 
                                          '예약희망_point': tmp_예약희망_point, '월': tmp_월, 
@@ -1242,7 +1250,7 @@ class Simulator_01():
             tmp_남예.loc[:, ['시']] = [x.strftime('%H') for x in tmp_남예['예약_일시']]
             self.tmp_남예 = tmp_남예
             
-            tmp_공휴일 = 예약가능일.loc[i, '공휴일']
+            tmp_공휴일 = bool(예약가능일.loc[i, '공휴일'])
             tmp_요일 = 예약가능일.loc[i, '요일']
             tmp_일시 = 예약가능일.loc[i, '예약일시']
             tmp_시 = tmp_일시.strftime('%H')
@@ -1315,8 +1323,8 @@ class Simulator_01():
 
 class Cluster():
     def __init__(self, value_kinds, 모든키, 모든원소):
-        self.모든키 = 모든키
-        self.모든원소 = 모든원소
+        self.모든키 = 모든키.copy()
+        self.모든원소 = 모든원소.copy()
         self.군집keys = []
         for 공휴일 in value_kinds['공휴일']:
             for 월 in value_kinds['월']:
@@ -1338,12 +1346,15 @@ class Cluster():
             self.군집s[str(sorted(군집key))] = []
             for key in 군집key:
                 tmp_list = self.모든원소.loc[(self.모든원소['월']==key[0])&(self.모든원소['요일']==key[1])&(self.모든원소['공휴일']==key[2])&(self.모든원소['시간대']==key[3]), 'count'].to_list()
-                if len(tmp_list) == 0:
-                    if  key[2] == False:
-                        tmp_list = [0]
-                    elif key[3] == '심야':
-                        tmp_list = [0]
+                # if len(tmp_list) == 0:
+                #     # tmp_list = [0]
+                #     if  key[2] == False:
+                #         tmp_list = [0]
+                #     elif key[3] == '심야':
+                #         tmp_list = [0]
                 self.군집s[str(sorted(군집key))] += tmp_list
+            if len(self.군집s[str(sorted(군집key))]) == 0:
+                self.군집s[str(sorted(군집key))] = [0]
 
         
         ### 집단 2개 이하인 것 평균 기준으로 합치기 (0개 인 것도 고려)
@@ -1392,12 +1403,12 @@ class Cluster():
         거리척도 우선 from scipy.stats import ks_2samp 기준.
         다른거 더 조사해서 옵션으로 넣어보기.
         '''
-        self.군집간거리 = {}
+        self.군집간유사도 = {}
         tmp_keys = list(self.군집s)
         for i in range(len(tmp_keys)):
             for j in range(i+1, len(tmp_keys)):
                 stat, p_value = ks_2samp(self.군집s[tmp_keys[i]], self.군집s[tmp_keys[j]])
-                self.군집간거리[str(sorted([tmp_keys[i], tmp_keys[j]]))] = (stat, p_value)
+                self.군집간유사도[str(sorted([tmp_keys[i], tmp_keys[j]]))] = (stat, p_value)
         self.history = []
     def _01_군집화(self):
         '''
@@ -1406,13 +1417,12 @@ class Cluster():
         '''
         while len(self.군집s) > 1:
             # p value가 가장 큰 key
-            max_key = max(self.군집간거리, key=lambda k: self.군집간거리[k][1])
+            max_key = max(self.군집간유사도, key=lambda k: self.군집간유사도[k][1])
             # print(max_key)
-            max_value = self.군집간거리[max_key]
+            max_value = self.군집간유사도[max_key]
             key_a = eval(max_key)[0]
             key_b = eval(max_key)[1]
             
-
             
             new_key = str(sorted(eval(key_a) + eval(key_b)))
 
@@ -1424,11 +1434,11 @@ class Cluster():
             tmp_keys.remove(new_key)
             for key in tmp_keys:
                 stat, p_value = ks_2samp(self.군집s[new_key], self.군집s[key])
-                self.군집간거리[str(sorted([new_key, key]))] = (stat, p_value)
+                self.군집간유사도[str(sorted([new_key, key]))] = (stat, p_value)
 
-                self.군집간거리.pop(str(sorted([key_a, key])))
-                self.군집간거리.pop(str(sorted([key_b, key])))
-            self.군집간거리.pop(str(sorted([key_b, key_a])))
+                self.군집간유사도.pop(str(sorted([key_a, key])))
+                self.군집간유사도.pop(str(sorted([key_b, key])))
+            self.군집간유사도.pop(str(sorted([key_b, key_a])))
             # history : [[key, [statistic, p-value], 왼원소, 오른원소]]
             self.history.append([max_key, max_value, a, b])
 
