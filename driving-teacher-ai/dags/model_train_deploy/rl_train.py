@@ -4,14 +4,18 @@ working_dir = os.getcwd()
 
 sys.path.append(working_dir)
 
-from model_train_deploy.lib.simulator_02 import Simulator_01
+from model_train_deploy.lib.simulator_03 import Simulator_01
 import pandas as pd
 from model_train_deploy.lib.sac_lstm import SACAgent
 import os
 import torch
 from model_train_deploy.lib.db_io import Engine
 
-db_info = {'host': '163.152.172.163',
+torch.set_num_threads(1)
+# torch.set_num_interop_threads(1)
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+db_info = {'host': '34.123.100.177',
           'port': '5432',
           'db_name': 'postgres',
           'user_name': 'tgsociety',
@@ -21,21 +25,22 @@ db_info = {'host': '163.152.172.163',
 action_dim = 25
 hidden_dim = 256
 lr = 3e-4
-batch_size = 64
+batch_size = 16
 num_episodes = 1000
 working_dir = os.getcwd()
 
 # Device configuration
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 device = 'cpu'
 
-def rl_train(execution_date):
+def rl_train(execution_date, retry= True):
     query = '''
         SELECT *
         FROM datamart.history_학습id
         ORDER BY 등록일시 DESC
         LIMIT 1
     '''
+    print(pd.__version__)
     db_handler = Engine(db_info)
     train_history = pd.read_sql(query, db_handler.engine)
     
@@ -54,11 +59,11 @@ def rl_train(execution_date):
                      num_cars = len(simulator.차량데이터))
 
     
-
-    path = './dags/model_train_deploy/model/'+str(int(train_history.loc[0, 'train_id']))
-    os.makedirs(path, exist_ok=True)
-    # agent.save_model(path = path + '/best_model.torch')
-    agent.load_model(path = path + '/best_model.torch')
+    if retry != 'No':
+        path = './dags/model_train_deploy/model/'+str(int(train_history.loc[0, 'train_id']))
+        os.makedirs(path, exist_ok=True)
+        # agent.save_model(path = path + '/best_model.torch')
+        agent.load_model(path = path + '/best_model.torch')
     
     day_경과 = 0
     

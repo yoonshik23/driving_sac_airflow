@@ -14,6 +14,7 @@ from fitter import Fitter
 from datetime import datetime
 
 import os
+import requests
 
 db_info = {
     'ip': '163.152.172.163',
@@ -47,13 +48,30 @@ def make_push_data(execution_date, 시군구_ids = ['11220', '11230', '11240']):
     접속_도착_텀['예약날짜'] = pd.to_datetime(접속_도착_텀['예약날짜'])
     접속_도착_텀['학원도착날짜'] = pd.to_datetime(접속_도착_텀['학원도착날짜'])
     접속_도착_텀['term'] = 접속_도착_텀['학원도착날짜'] - 접속_도착_텀['예약날짜']
-    data_term = 접속_도착_텀.sort_values('term').reset_index(drop=True)
+
+    url = 'https://getallorders-xupmv5q2rq-du.a.run.app'
+    response = requests.get(url)
+    data = response.json()
     
     samples = []
-    for i, tick in enumerate(data_term['term']):
-        print(i, tick, tick.total_seconds())
-        if i >= 51:
-            samples.append(tick.total_seconds())
+    for i in range(len(data)):
+        if data[i]['appointedAt'] is not None:
+            arrived_time = pd.to_datetime(data[i]['selectedTime']['firstVisit']['date'])
+            if data[i]['arrivalAt'] is not None:
+                arrived_time = max(pd.to_datetime(data[i]['arrivalAt']),  pd.to_datetime(data[i]['selectedTime']['firstVisit']['date']))
+            tmp_term = (arrived_time - pd.to_datetime(data[i]['appointedAt'])).total_seconds()
+            if tmp_term <0:
+                tmp_term = 0
+            samples.append(tmp_term)
+        
+    
+    # data_term = 접속_도착_텀.sort_values('term').reset_index(drop=True)
+    
+    # samples = []
+    # for i, tick in enumerate(data_term['term']):
+    #     print(i, tick, tick.total_seconds())
+    #     if i >= 51:
+    #         samples.append(tick.total_seconds())
     
     
     핏터 = Fitter(samples)

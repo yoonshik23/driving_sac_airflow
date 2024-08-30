@@ -32,13 +32,14 @@ from sqlalchemy import text, LargeBinary, Integer
 
 class Simulator_01():
     
-    def __init__(self, simulation_start_dt, simulation_end_dt, db_info, is_first = False, data_start_date = None, data_end_date = None, weight_학생숫자 = 1, 차량숫자 = 12, 시군구_ids = ['11220', '11230', '11240'], mode = 'base'):
+    def __init__(self, simulation_start_dt, simulation_end_dt, db_info, is_first = False, data_start_date = None, data_end_date = None, weight_학생숫자 = 1, 차량숫자 = 12, 시군구_ids = ['11220', '11230', '11240'], mode = 'base', try_num = 0):
         '''
         시뮬레이터에서 사용하는 point 좌표는 모두 위경도 -> 미터 단위로 바꾸기 
         df[''] = df[''].to_crs(epsg = 3857) (위경도좌표 -> 미터좌표)
         df[''] = df[''].to_crs(epsg=4326) (미터좌표 -> 위경도좌표)
         '''
-        
+        random.seed(try_num)
+        np.random.seed(try_num)
         if is_first == True:
             self.db_handler = Engine(db_info)
             self._01_수요데이터불러오기(start_datetime = pd.to_datetime(data_start_date), end_datetime = pd.to_datetime(data_end_date), 시군구_ids = 시군구_ids)
@@ -1016,8 +1017,10 @@ class Simulator_01():
                 condition2 = (self.data['요일'] == condition[1])
                 condition3 = (self.data['공휴일'] == condition[2])
                 condition4 = (self.data['시간대'] == condition[3])
-                self.hierarchy_sample_data[key] = pd.concat([self.hierarchy_sample_data[key], 
-                                                            self.data.loc[condition1&condition2&condition3&condition4, :]]).reset_index(drop = True)
+                tmp_df = self.data.loc[condition1&condition2&condition3&condition4, :]
+                if len(tmp_df)!=0:
+                    self.hierarchy_sample_data[key] = pd.concat([self.hierarchy_sample_data[key], tmp_df
+                                                                ]).reset_index(drop = True)
                         
     def _04_학생_생성(self, dt_start, dt_end, 위치_데이터, weight_학생숫자 = 1):
         '''

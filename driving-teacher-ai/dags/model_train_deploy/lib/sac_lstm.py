@@ -9,7 +9,11 @@ from collections import deque
 import matplotlib.pyplot as plt
 import torch.nn.init as init
 import math
-
+import os
+torch.set_num_threads(1)
+torch.set_num_interop_threads(1)
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 # Hyperparameters
 gamma = 0.99
 tau = 0.005
