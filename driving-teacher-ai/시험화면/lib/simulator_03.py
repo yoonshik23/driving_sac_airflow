@@ -44,8 +44,6 @@ class Simulator_01():
         if is_first == True:
             self.db_handler = Engine(db_info)
             self._01_수요데이터불러오기(start_datetime = pd.to_datetime(data_start_date), end_datetime = pd.to_datetime(data_end_date), 시군구_ids = 시군구_ids)
-
-
     
             self._02_구분데이터붙이기()
             self._03_클러스터링()

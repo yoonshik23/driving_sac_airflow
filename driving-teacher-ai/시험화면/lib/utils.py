@@ -74,12 +74,16 @@ def 공휴일출력(year):
     공휴일s = []
 
 
-    공휴일_response = requests.get(공휴일_url, params = 공휴일_params)
-    if 공휴일_response.json()['response']['body']['totalCount'] != 0:
-        공휴일s += 공휴일_response.json()['response']['body']['items']['item']
-    else:
-        공휴일s += [{'locdate': x.strftime('%Y%m%d')} for x in pytimekr.holidays(int(year))]
 
+    try:
+        공휴일_response = requests.get(공휴일_url, params = 공휴일_params)
+        result = 공휴일_response.json()
+        if result['response']['body']['totalCount'] != 0:
+            공휴일s += result['response']['body']['items']['item']
+        else:
+            ERROR
+    except Exception as e:
+        공휴일s += [{'locdate': x.strftime('%Y%m%d')} for x in pytimekr.holidays(int(year))]
 
     tmp = []
     for i in range(len(공휴일s)):

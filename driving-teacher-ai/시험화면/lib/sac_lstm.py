@@ -9,6 +9,7 @@ from collections import deque
 import matplotlib.pyplot as plt
 import torch.nn.init as init
 import math
+import os
 
 # Hyperparameters
 gamma = 0.99
@@ -17,9 +18,9 @@ alpha = 0.2
 lr = 0.0001
 buffer_capacity1 = 1000000
 buffer_capacity2 = 1500
-batch_size = 256
-hidden_dim = 256
-lstm_hidden_dim = 128
+batch_size = 32
+hidden_dim = 64
+lstm_hidden_dim = 64
 embedding_dim = 64
 sequence_state_dim = 10
 
@@ -29,7 +30,13 @@ priority_beta_frames = 11000
 epsilon = 1e-6
 
 며칠뒤 = 30
-
+torch.set_num_threads(1)
+torch.set_num_interop_threads(1)
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
 # SumTree data structure
 class ReplayBuffer:
     def __init__(self, capacity):
@@ -413,10 +420,12 @@ class SACAgent:
 
         next_continuous_vars = torch.cat([s[0] for s in next_states2], dim=0).to(self.device)
         next_variable_length_tensors = torch.cat([s[1] for s in next_states2], dim=0).to(self.device)
-
-        actions2 = torch.tensor(actions, dtype=torch.float32).to(self.device).squeeze(1)
-        rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
-        dones2 = torch.tensor(dones, dtype=torch.float32).to(self.device)
+        actions_np = np.array(actions)
+        actions2 = torch.tensor(actions_np, dtype=torch.float32).to(self.device).squeeze(1)
+        rewards_np = np.array(rewards)
+        rewards = torch.tensor(rewards_np, dtype=torch.float32).to(self.device)
+        dones_np = np.array(dones)
+        dones2 = torch.tensor(dones_np, dtype=torch.float32).to(self.device)
 
         with torch.no_grad():
             next_mu, next_std = self.actor(next_continuous_vars, next_variable_length_tensors)
